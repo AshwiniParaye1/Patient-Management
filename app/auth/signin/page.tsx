@@ -1,8 +1,9 @@
+//app/auth/signin/page.tsx
+
 "use client";
 
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 
 export default function SignIn() {
   const router = useRouter();

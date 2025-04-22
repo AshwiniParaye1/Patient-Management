@@ -1,9 +1,11 @@
+//app/components/Navbar.tsx
+
 "use client";
 
-import Link from "next/link";
 import { useSession } from "next-auth/react";
-import AuthButton from "./AuthButton";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
+import AuthButton from "./AuthButton";
 
 export default function Navbar() {
   const { data: session } = useSession();

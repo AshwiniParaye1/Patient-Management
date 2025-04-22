@@ -1,3 +1,5 @@
+//lib/googleDrive.ts
+
 /**
  * Utility functions for interacting with Google Drive API
  */
@@ -24,8 +26,8 @@ export async function listFiles(accessToken: string) {
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+          "Content-Type": "application/json"
+        }
       }
     );
 
@@ -60,7 +62,7 @@ export async function uploadFile(
     // Create file metadata
     const fileMetadata = {
       name: file.name,
-      ...metadata,
+      ...metadata
     };
 
     // Create multipart form data
@@ -77,9 +79,9 @@ export async function uploadFile(
       {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`
         },
-        body: formData,
+        body: formData
       }
     );
 
@@ -114,8 +116,8 @@ export async function downloadFile(accessToken: string, fileId: string) {
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
       {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
+          Authorization: `Bearer ${accessToken}`
+        }
       }
     );
 

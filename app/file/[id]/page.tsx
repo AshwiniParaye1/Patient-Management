@@ -1,36 +1,37 @@
+//app/file/[id]/page.tsx
+
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
-import { useParams, useRouter } from "next/navigation";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import SearchIcon from "@mui/icons-material/Search";
 import {
-  Button,
-  TextField,
-  Paper,
-  Container,
-  Typography,
-  Box,
-  CircularProgress,
   Alert,
-  InputAdornment,
-  IconButton,
+  Box,
+  Button,
   Chip,
+  CircularProgress,
+  Container,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  Tooltip,
+  IconButton,
+  InputAdornment,
   Menu,
   MenuItem,
+  Paper,
   Snackbar,
+  TextField,
+  Typography
 } from "@mui/material";
-import SearchIcon from "@mui/icons-material/Search";
-import AddIcon from "@mui/icons-material/Add";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { useSession } from "next-auth/react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 // Function to fetch Google Sheets data
 async function fetchSheetData(accessToken: string, fileId: string) {
@@ -45,8 +46,8 @@ async function fetchSheetData(accessToken: string, fileId: string) {
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+          "Content-Type": "application/json"
+        }
       }
     );
 
@@ -66,8 +67,8 @@ async function fetchSheetData(accessToken: string, fileId: string) {
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
+          "Content-Type": "application/json"
+        }
       }
     );
 
@@ -112,7 +113,7 @@ export default function FilePage() {
   const [notification, setNotification] = useState({
     open: false,
     message: "",
-    type: "success",
+    type: "success"
   });
 
   // Redirect if not authenticated
@@ -239,7 +240,7 @@ export default function FilePage() {
       setNotification({
         open: true,
         message: "Row updated successfully",
-        type: "success",
+        type: "success"
       });
 
       handleEditDialogClose();
@@ -247,7 +248,7 @@ export default function FilePage() {
       setNotification({
         open: true,
         message: `Failed to update: ${error.message}`,
-        type: "error",
+        type: "error"
       });
     }
   };
@@ -281,7 +282,7 @@ export default function FilePage() {
       setNotification({
         open: true,
         message: "Row deleted successfully",
-        type: "success",
+        type: "success"
       });
 
       handleDeleteDialogClose();
@@ -289,7 +290,7 @@ export default function FilePage() {
       setNotification({
         open: true,
         message: `Failed to delete: ${error.message}`,
-        type: "error",
+        type: "error"
       });
     }
   };
@@ -344,7 +345,7 @@ export default function FilePage() {
             flexDirection: { xs: "column", md: "row" },
             alignItems: { xs: "stretch", md: "center" },
             gap: 2,
-            justifyContent: "space-between",
+            justifyContent: "space-between"
           }}
         >
           <Typography variant="h4" component="h1" fontWeight="bold">
@@ -356,7 +357,7 @@ export default function FilePage() {
               display: "flex",
               gap: 2,
               flexDirection: { xs: "column", sm: "row" },
-              width: { xs: "100%", md: "auto" },
+              width: { xs: "100%", md: "auto" }
             }}
           >
             <TextField
@@ -371,7 +372,7 @@ export default function FilePage() {
                   <InputAdornment position="start">
                     <SearchIcon />
                   </InputAdornment>
-                ),
+                )
               }}
             />
             <Box sx={{ display: "flex", gap: 1 }}>
@@ -400,7 +401,7 @@ export default function FilePage() {
               sx={{
                 p: 2,
                 borderBottom: "1px solid #eaeaea",
-                bgcolor: "#f9f9f9",
+                bgcolor: "#f9f9f9"
               }}
             >
               <Chip
@@ -503,7 +504,7 @@ export default function FilePage() {
                     display: "flex",
                     flexDirection: "column",
                     gap: 2,
-                    pt: 1,
+                    pt: 1
                   }}
                 >
                   {editValues.map((value, index) => (

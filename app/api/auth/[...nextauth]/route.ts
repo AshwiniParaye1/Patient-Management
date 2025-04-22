@@ -1,3 +1,5 @@
+//app/api/auth/[...nextauth]/route.ts
+
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 
@@ -15,17 +17,17 @@ const handler = NextAuth({
             "https://www.googleapis.com/auth/drive.file",
             "https://www.googleapis.com/auth/drive.readonly",
             "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/spreadsheets.readonly",
+            "https://www.googleapis.com/auth/spreadsheets.readonly"
           ].join(" "),
           prompt: "consent",
           access_type: "offline",
-          response_type: "code",
-        },
-      },
-    }),
+          response_type: "code"
+        }
+      }
+    })
   ],
   pages: {
-    signIn: "/auth/signin",
+    signIn: "/auth/signin"
   },
   debug: true, // Enable debug logs
   callbacks: {
@@ -54,7 +56,7 @@ const handler = NextAuth({
           refreshToken: account.refresh_token,
           accessTokenExpires: account.expires_at
             ? account.expires_at * 1000
-            : Date.now() + 3600 * 1000, // 1 hour default
+            : Date.now() + 3600 * 1000 // 1 hour default
         };
       }
 
@@ -70,11 +72,11 @@ const handler = NextAuth({
       // Note: Refresh token logic would go here if needed
       return {
         ...token,
-        error: "RefreshAccessTokenError",
+        error: "RefreshAccessTokenError"
       };
-    },
+    }
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: process.env.NEXTAUTH_SECRET
 });
 
 export { handler as GET, handler as POST };
