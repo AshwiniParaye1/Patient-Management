@@ -1,8 +1,4 @@
-//app/file/[id]/page.tsx
-
 "use client";
-
-import type React from "react";
 
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -33,16 +29,16 @@ import {
 } from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
+import type React from "react";
 import { useEffect, useState } from "react";
 
-// Function to fetch Google Sheets data
-async function fetchSheetData(accessToken: string, fileId: string) {
+// Function to get available sheets in the spreadsheet
+async function getAvailableSheets(accessToken: string, fileId: string) {
   if (!accessToken) {
     throw new Error("No access token provided");
   }
 
   try {
-    // First get spreadsheet metadata to find sheet IDs
     const metadataResponse = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${fileId}`,
       {
@@ -60,12 +56,29 @@ async function fetchSheetData(accessToken: string, fileId: string) {
     }
 
     const metadata = await metadataResponse.json();
-    console.log("metadata", metadata);
-    const firstSheetId = metadata.sheets[2].properties.title;
+    return metadata.sheets.map((sheet: any) => ({
+      id: sheet.properties.sheetId,
+      title: sheet.properties.title
+    }));
+  } catch (error) {
+    console.error("Error fetching Google Sheets metadata:", error);
+    throw error;
+  }
+}
 
-    // Now get the actual data from the first sheet
+// Function to fetch Google Sheets data
+async function fetchSheetData(
+  accessToken: string,
+  fileId: string,
+  sheetTitle: string
+) {
+  if (!accessToken) {
+    throw new Error("No access token provided");
+  }
+
+  try {
     const dataResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${firstSheetId}`,
+      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${sheetTitle}`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -79,10 +92,46 @@ async function fetchSheetData(accessToken: string, fileId: string) {
     }
 
     const data = await dataResponse.json();
-    console.log("data", data);
     return data.values;
   } catch (error) {
     console.error("Error fetching Google Sheet data:", error);
+    throw error;
+  }
+}
+
+// Function to add data to a specific sheet
+async function addDataToSheet(
+  accessToken: string,
+  fileId: string,
+  sheetName: string,
+  rowData: string[]
+) {
+  if (!accessToken) {
+    throw new Error("No access token provided");
+  }
+
+  try {
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${sheetName}:append?valueInputOption=USER_ENTERED`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          values: [rowData]
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to add data to ${sheetName} sheet`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error(`Error adding data to ${sheetName} sheet:`, error);
     throw error;
   }
 }
@@ -117,8 +166,19 @@ async function deleteSheetRow(
     }
 
     const metadata = await metadataResponse.json();
+
     // Find the sheet with the matching title
-    const sheetId = metadata.sheets[2].properties.sheetId;
+    let sheetId = null;
+    for (const sheet of metadata.sheets) {
+      if (sheet.properties.title === sheetTitle) {
+        sheetId = sheet.properties.sheetId;
+        break;
+      }
+    }
+
+    if (!sheetId) {
+      throw new Error(`Could not find sheet with title: ${sheetTitle}`);
+    }
 
     // Google Sheets API requires batch update for row deletion
     const request = {
@@ -129,7 +189,7 @@ async function deleteSheetRow(
               sheetId: sheetId,
               dimension: "ROWS",
               startIndex: rowIndex,
-              endIndex: rowIndex + 1 // End index is exclusive
+              endIndex: rowIndex + 1
             }
           }
         }
@@ -161,44 +221,21 @@ async function deleteSheetRow(
   }
 }
 
-// Function to add a new row to Google Sheets
-async function addSheetRow(
-  accessToken: string,
-  fileId: string,
-  sheetTitle: string,
-  rowData: string[]
-) {
-  if (!accessToken) {
-    throw new Error("No access token provided");
-  }
+// Function to generate unique IDs
+function generateId(prefix: string) {
+  return `${prefix}${Math.floor(Math.random() * 10000)
+    .toString()
+    .padStart(4, "0")}`;
+}
 
-  try {
-    // Append the row to the sheet
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${sheetTitle}:append?valueInputOption=USER_ENTERED`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          values: [rowData]
-        })
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error("Google Sheets API error:", errorData);
-      throw new Error(`Failed to add row: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error adding row to Google Sheet:", error);
-    throw error;
-  }
+// Function to format date as MM/DD/YY
+function formatDate(date: string) {
+  if (!date) return "";
+  const d = new Date(date);
+  return `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d
+    .getDate()
+    .toString()
+    .padStart(2, "0")}/${d.getFullYear().toString().slice(-2)}`;
 }
 
 export default function FilePage() {
@@ -211,6 +248,10 @@ export default function FilePage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
+  const [activeSheet, setActiveSheet] = useState<string | null>(null);
+  const [availableSheets, setAvailableSheets] = useState<
+    Array<{ id: number; title: string }>
+  >([]);
 
   // State for edit functionality
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -248,7 +289,7 @@ export default function FilePage() {
   const [notification, setNotification] = useState({
     open: false,
     message: "",
-    type: "success"
+    type: "success" as "success" | "error" | "info" | "warning"
   });
 
   // Redirect if not authenticated
@@ -258,16 +299,52 @@ export default function FilePage() {
     }
   }, [status, router]);
 
-  // Fetch the sheet data when session is available
+  // Get available sheets when session is available
+  useEffect(() => {
+    async function fetchSheets() {
+      if (!id || !session?.accessToken) return;
+
+      try {
+        const sheets = await getAvailableSheets(
+          session.accessToken,
+          id.toString()
+        );
+        setAvailableSheets(sheets);
+
+        // Set the active sheet to the patient sheet
+        const patientSheet = sheets.find(
+          ({ sheet }: any) => sheet.title.toLowerCase() === "patient"
+        );
+
+        if (patientSheet) {
+          setActiveSheet(patientSheet.title);
+        } else if (sheets.length > 0) {
+          setActiveSheet(sheets[0].title);
+        }
+      } catch (err: any) {
+        console.error("Error fetching sheets:", err);
+        setError(err.message || "Failed to load spreadsheet sheets");
+      }
+    }
+
+    if (session?.accessToken) {
+      fetchSheets();
+    }
+  }, [session, id]);
+
+  // Fetch the sheet data when session and activeSheet are available
   useEffect(() => {
     async function getSheetData() {
-      if (!id) return;
-      if (!session?.accessToken) return;
-      console.log("id", id);
+      if (!id || !session?.accessToken || !activeSheet) return;
+
       try {
         setLoading(true);
-        const data = await fetchSheetData(session.accessToken, id.toString());
-        setSheetData(data);
+        const data = await fetchSheetData(
+          session.accessToken,
+          id.toString(),
+          activeSheet
+        );
+        setSheetData(data || []);
         setError(null);
       } catch (err: any) {
         console.error("Error:", err);
@@ -277,21 +354,25 @@ export default function FilePage() {
       }
     }
 
-    if (session?.accessToken) {
+    if (session?.accessToken && activeSheet) {
       getSheetData();
     }
-  }, [session, id]);
+  }, [session, id, activeSheet]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
   };
 
   const handleRefresh = async () => {
-    if (!id || !session?.accessToken) return;
+    if (!id || !session?.accessToken || !activeSheet) return;
     setRefreshing(true);
     try {
-      const data = await fetchSheetData(session.accessToken, id.toString());
-      setSheetData(data);
+      const data = await fetchSheetData(
+        session.accessToken,
+        id.toString(),
+        activeSheet
+      );
+      setSheetData(data || []);
       setError(null);
     } catch (err: any) {
       setError(err.message || "Failed to refresh data");
@@ -307,7 +388,7 @@ export default function FilePage() {
           .slice(1)
           .filter((row) =>
             row.some((cell) =>
-              cell.toString().toLowerCase().includes(search.toLowerCase())
+              cell?.toString().toLowerCase().includes(search.toLowerCase())
             )
           )
       : [];
@@ -351,26 +432,14 @@ export default function FilePage() {
     try {
       // Calculate the actual row index in the sheet (header + 1-based index)
       const actualRowIndex = sheetData.indexOf(filteredData[editRowIndex]) + 1;
-      const sheetTitle = sheetData[0][2].properties?.title || "Sheet1"; // Use the first sheet or default
 
-      // Create a range string like "A5:Z5" for the row
-      const rangeStart = "A" + (actualRowIndex + 1); // +1 for header row
-      const rangeEnd =
-        String.fromCharCode(65 + editValues.length - 1) + (actualRowIndex + 1);
-      const range = `${rangeStart}:${rangeEnd}`;
-
-      // await updateSheetData(
-      //   session.accessToken,
-      //   id.toString(),
-      //   sheetTitle,
-      //   range,
-      //   editValues
-      // );
-
-      // Update local data
+      // Update local data first (optimistic update)
       const newSheetData = [...sheetData];
       newSheetData[actualRowIndex] = editValues;
       setSheetData(newSheetData);
+
+      // Refresh data to ensure we have the latest
+      await handleRefresh();
 
       setNotification({
         open: true,
@@ -401,28 +470,17 @@ export default function FilePage() {
   };
 
   const handleDeleteConfirm = async () => {
-    if (deleteRowIndex === null || !id || !session?.accessToken) return;
+    if (deleteRowIndex === null || !id || !session?.accessToken || !activeSheet)
+      return;
 
     try {
       const actualRowIndex =
         sheetData.indexOf(filteredData[deleteRowIndex]) + 1;
-      const metadataResponse = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
-
-      const metadata = await metadataResponse.json();
-      const sheetTitle = metadata.sheets[2].properties.title;
 
       await deleteSheetRow(
         session.accessToken,
         id.toString(),
-        sheetTitle,
+        activeSheet,
         actualRowIndex
       );
 
@@ -433,11 +491,7 @@ export default function FilePage() {
       });
 
       // Refresh the sheetData immediately
-      const updatedData = await fetchSheetData(
-        session.accessToken,
-        id.toString()
-      );
-      setSheetData(updatedData);
+      await handleRefresh();
     } catch (err: any) {
       console.error("Delete row error:", err);
       setNotification({
@@ -458,7 +512,6 @@ export default function FilePage() {
 
   const handleAddDialogClose = () => {
     setAddDialogOpen(false);
-    // Reset form
     setNewPatient({
       patientId: "Auto Generate",
       patientName: "",
@@ -488,71 +541,97 @@ export default function FilePage() {
     if (!id || !session?.accessToken) return;
 
     try {
-      // Get sheet title
-      const metadataResponse = await fetch(
-        `https://sheets.googleapis.com/v4/spreadsheets/${id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-            "Content-Type": "application/json"
-          }
-        }
-      );
-
-      const metadata = await metadataResponse.json();
-      const sheetTitle = metadata.sheets[2].properties.title;
-
-      // Generate a random ID if auto-generate is selected
+      // Generate IDs
       const patientId =
         newPatient.patientId === "Auto Generate"
-          ? `P${Math.floor(Math.random() * 10000)
+          ? `a12kj${Math.floor(Math.random() * 1000)
               .toString()
-              .padStart(4, "0")}`
+              .padStart(3, "0")}`
           : newPatient.patientId;
+      const appointmentId = generateId("ap");
 
-      // Create row data array in the same order as the sheet
-      const rowData = [
-        patientId,
-        newPatient.patientName,
-        newPatient.location,
-        newPatient.age,
-        newPatient.phone,
-        newPatient.address,
-        newPatient.prescription,
-        newPatient.dose,
-        newPatient.visitDate,
-        newPatient.nextVisit,
-        newPatient.physicianId,
-        newPatient.physicianName,
-        newPatient.physicianPhone,
-        newPatient.bill
+      // Split patient name into first and last name
+      const [firstName = "", lastName = ""] = newPatient.patientName.split(" ");
+
+      // 1. Add to patient sheet
+      const patientData = [
+        patientId, // ssn
+        firstName, // first_name
+        lastName, // last_name
+        newPatient.address, // address
+        newPatient.location, // location
+        "", // email
+        newPatient.phone, // phone
+        "" // pcp
       ];
-
-      // Add the row to the sheet
-      await addSheetRow(
+      await addDataToSheet(
         session.accessToken,
         id.toString(),
-        sheetTitle,
-        rowData
+        "patient",
+        patientData
       );
+
+      // 2. Add to appointment sheet
+      const appointmentData = [
+        appointmentId, // appointmentID
+        patientId, // patientID
+        newPatient.physicianId, // physicianID
+        formatDate(newPatient.visitDate), // start_dt_time
+        formatDate(newPatient.nextVisit) // next_dt_time
+      ];
+      await addDataToSheet(
+        session.accessToken,
+        id.toString(),
+        "appointment",
+        appointmentData
+      );
+
+      // 3. Add to prescribes sheet
+      const prescribesData = [
+        newPatient.physicianId, // physician
+        patientId, // PatientID
+        newPatient.prescription, // description
+        newPatient.dose // dose
+      ];
+      await addDataToSheet(
+        session.accessToken,
+        id.toString(),
+        "prescribes",
+        prescribesData
+      );
+
+      // 4. Add to physician sheet if new physician
+      if (newPatient.physicianId && newPatient.physicianName) {
+        const [physicianFirstName = "", physicianLastName = ""] =
+          newPatient.physicianName.split(" ");
+        const physicianData = [
+          newPatient.physicianId, // employeeid
+          `${physicianFirstName} ${physicianLastName}`, // name
+          "Sr Doctor", // position
+          newPatient.physicianPhone // phone
+        ];
+        await addDataToSheet(
+          session.accessToken,
+          id.toString(),
+          "physician",
+          physicianData
+        );
+      }
 
       setNotification({
         open: true,
-        message: "Patient added successfully",
+        message: "Patient and related data added successfully",
         type: "success"
       });
 
       // Refresh the data
-      const updatedData = await fetchSheetData(
-        session.accessToken,
-        id.toString()
-      );
-      setSheetData(updatedData);
+      await handleRefresh();
       handleAddDialogClose();
     } catch (error: any) {
+      console.error("Error adding patient data:", error);
       setNotification({
         open: true,
-        message: `Failed to add patient: ${error.message}`,
+        message: `Failed to add patient data: ${error.message}`,
         type: "error"
       });
     }
@@ -613,6 +692,14 @@ export default function FilePage() {
         >
           <Typography variant="h4" component="h1" fontWeight="bold">
             Spreadsheet Data
+            {activeSheet && (
+              <Chip
+                label={activeSheet}
+                size="small"
+                color="primary"
+                sx={{ ml: 2, verticalAlign: "middle" }}
+              />
+            )}
           </Typography>
 
           <Box
@@ -646,7 +733,7 @@ export default function FilePage() {
                 sx={{ whiteSpace: "nowrap" }}
                 onClick={handleAddClick}
               >
-                Add Row
+                Add Patient
               </Button>
               <IconButton
                 onClick={handleRefresh}
@@ -1186,9 +1273,16 @@ export default function FilePage() {
         open={notification.open}
         autoHideDuration={6000}
         onClose={handleCloseNotification}
-        message={notification.message}
         anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      />
+      >
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notification.type}
+          sx={{ width: "100%" }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }
