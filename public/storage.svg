@@ -1,0 +1,32 @@
+<svg width="500" height="400" viewBox="0 0 500 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background elements -->
+  <rect x="100" y="70" width="300" height="200" rx="20" fill="#f5f5f5" />
+
+  <!-- Cloud base -->
+  <path d="M340 150C340 127.909 322.091 110 300 110H200C177.909 110 160 127.909 160 150V260C160 282.091 177.909 300 200 300H300C322.091 300 340 282.091 340 260V150Z" fill="white" stroke="#e0e0e0" stroke-width="2"/>
+
+  <!-- Cloud top -->
+  <path d="M350 150C350 145.286 349.452 140.687 348.409 136.264C343.936 118.115 329.187 104.404 310.489 101.327C305.791 100.446 300.9 100 295.894 100C273.071 100 252.98 112.036 243.084 129.981C236.873 126.641 229.649 124.773 221.958 124.773C200.499 124.773 183.031 142.241 183.031 163.699C183.031 165.273 183.138 166.824 183.343 168.349C173.475 174.55 167 185.596 167 198.184C167 216.84 182.16 232 200.816 232H330.184C348.84 232 364 216.84 364 198.184C364 179.528 348.84 164.368 330.184 164.368C326.751 164.368 323.438 164.921 320.331 165.944C336.905 159.107 350 150 350 150Z" fill="white" stroke="#e0e0e0" stroke-width="2"/>
+
+  <!-- File icons -->
+  <rect x="200" y="190" width="40" height="50" rx="4" fill="#e0e0e0" />
+  <rect x="250" y="190" width="40" height="50" rx="4" fill="#e0e0e0" />
+  <rect x="225" y="160" width="40" height="50" rx="4" fill="#e0e0e0" />
+
+  <!-- Lines on files -->
+  <line x1="210" y1="205" x2="230" y2="205" stroke="#b0b0b0" stroke-width="2" />
+  <line x1="210" y1="215" x2="230" y2="215" stroke="#b0b0b0" stroke-width="2" />
+  <line x1="210" y1="225" x2="220" y2="225" stroke="#b0b0b0" stroke-width="2" />
+
+  <line x1="260" y1="205" x2="280" y2="205" stroke="#b0b0b0" stroke-width="2" />
+  <line x1="260" y1="215" x2="280" y2="215" stroke="#b0b0b0" stroke-width="2" />
+  <line x1="260" y1="225" x2="270" y2="225" stroke="#b0b0b0" stroke-width="2" />
+
+  <line x1="235" y1="175" x2="255" y2="175" stroke="#b0b0b0" stroke-width="2" />
+  <line x1="235" y1="185" x2="255" y2="185" stroke="#b0b0b0" stroke-width="2" />
+  <line x1="235" y1="195" x2="245" y2="195" stroke="#b0b0b0" stroke-width="2" />
+
+  <!-- Upload arrow -->
+  <circle cx="250" cy="280" r="25" fill="black" />
+  <path d="M250 270L240 280H247.5V290H252.5V280H260L250 270Z" fill="white" />
+</svg>
