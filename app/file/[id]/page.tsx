@@ -85,6 +85,80 @@ async function fetchSheetData(accessToken: string, fileId: string) {
   }
 }
 
+// Function to delete a row from Google Sheets
+async function deleteSheetRow(
+  accessToken: string,
+  fileId: string,
+  sheetTitle: string,
+  rowIndex: number
+) {
+  if (!accessToken) {
+    throw new Error("No access token provided");
+  }
+
+  try {
+    // Get the actual sheet ID from metadata first
+    const metadataResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    if (!metadataResponse.ok) {
+      throw new Error(
+        `Failed to get spreadsheet metadata: ${metadataResponse.status}`
+      );
+    }
+
+    const metadata = await metadataResponse.json();
+    // Find the sheet with the matching title
+    const sheetId = metadata.sheets[2].properties.sheetId;
+
+    // Google Sheets API requires batch update for row deletion
+    const request = {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId: sheetId,
+              dimension: "ROWS",
+              startIndex: rowIndex,
+              endIndex: rowIndex + 1 // End index is exclusive
+            }
+          }
+        }
+      ]
+    };
+
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}:batchUpdate`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(request)
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Google Sheets API error:", errorData);
+      throw new Error(`Failed to delete row: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error deleting row from Google Sheet:", error);
+    throw error;
+  }
+}
+
 export default function FilePage() {
   const params = useParams();
   const { id } = params;
@@ -269,15 +343,27 @@ export default function FilePage() {
     if (deleteRowIndex === null || !id || !session?.accessToken) return;
 
     try {
-      // Calculate the actual row index in the sheet
       const actualRowIndex =
         sheetData.indexOf(filteredData[deleteRowIndex]) + 1;
-      const sheetTitle = sheetData[0][2].properties?.title || "Sheet1";
+      const metadataResponse = await fetch(
+        `https://sheets.googleapis.com/v4/spreadsheets/${id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${session.accessToken}`,
+            "Content-Type": "application/json"
+          }
+        }
+      );
 
-      // Update local data by removing the row
-      const newSheetData = [...sheetData];
-      newSheetData.splice(actualRowIndex, 1);
-      setSheetData(newSheetData);
+      const metadata = await metadataResponse.json();
+      const sheetTitle = metadata.sheets[2].properties.title;
+
+      await deleteSheetRow(
+        session.accessToken,
+        id.toString(),
+        sheetTitle,
+        actualRowIndex
+      );
 
       setNotification({
         open: true,
@@ -285,13 +371,22 @@ export default function FilePage() {
         type: "success"
       });
 
-      handleDeleteDialogClose();
-    } catch (error: any) {
+      // Refresh the sheetData immediately
+      const updatedData = await fetchSheetData(
+        session.accessToken,
+        id.toString()
+      );
+      setSheetData(updatedData);
+    } catch (err: any) {
+      console.error("Delete row error:", err);
       setNotification({
         open: true,
-        message: `Failed to delete: ${error.message}`,
+        message: err.message || "Failed to delete row",
         type: "error"
       });
+    } finally {
+      setDeleteRowIndex(null);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -544,8 +639,10 @@ export default function FilePage() {
                 </DialogContentText>
               </DialogContent>
               <DialogActions>
-                <Button onClick={handleDeleteDialogClose}>Cancel</Button>
-                <Button onClick={handleDeleteConfirm} color="error">
+                <Button onClick={() => setDeleteDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button color="error" onClick={handleDeleteConfirm}>
                   Delete
                 </Button>
               </DialogActions>

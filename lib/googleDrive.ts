@@ -135,3 +135,40 @@ export async function downloadFile(accessToken: string, fileId: string) {
     throw error;
   }
 }
+
+// Function to delete a file from Google Drive
+export async function deleteFile(accessToken: string, fileId: string) {
+  console.log(
+    "deleteFile called with token:",
+    accessToken ? "Token exists" : "No token"
+  );
+
+  if (!accessToken) {
+    throw new Error("No access token provided");
+  }
+
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${fileId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Google Drive delete error response:", errorText);
+      throw new Error(
+        `File deletion failed: ${response.status} ${response.statusText}`
+      );
+    }
+
+    return true; // Successful deletion
+  } catch (error) {
+    console.error("Error deleting file from Google Drive:", error);
+    throw error;
+  }
+}
