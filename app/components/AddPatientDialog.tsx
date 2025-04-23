@@ -4,7 +4,6 @@ import { formatDate, generateId } from "@/lib/utils";
 import { NewPatient } from "@/types/sheet";
 import {
   Box,
-  Button,
   Dialog,
   DialogActions,
   DialogContent,
@@ -438,10 +437,18 @@ const AddPatientDialog: React.FC<AddPatientDialogProps> = ({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleAddPatient} variant="contained" color="primary">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 mr-4 bg-white border text-black rounded-lg hover:bg-gray-200 transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleAddPatient}
+          className="px-4 py-2 mr-4 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+        >
           Add Patient
-        </Button>
+        </button>
       </DialogActions>
     </Dialog>
   );
