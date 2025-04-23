@@ -13,6 +13,7 @@ export interface NewPatient {
   age: string;
   phone: string;
   address: string;
+  email: string;
   prescription: string;
   dose: string;
   visitDate: string;

@@ -61,7 +61,7 @@ const AddPatientDialog: React.FC<AddPatientDialogProps> = ({
         newPatient.lastName, // last_name
         newPatient.address, // address
         newPatient.location, // location
-        "", // email
+        newPatient.email, // email - ADDED
         newPatient.phone, // phone
         "" // pcp
       ];
@@ -233,6 +233,24 @@ const AddPatientDialog: React.FC<AddPatientDialogProps> = ({
                 size="small"
                 value={newPatient.phone}
                 onChange={(e) => onNewPatientChange("phone", e.target.value)}
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "8px"
+                  }
+                }}
+              />
+            </Box>
+            {/* Email Field - ADDED */}
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Email
+              </Typography>
+              <TextField
+                fullWidth
+                variant="outlined"
+                size="small"
+                value={newPatient.email}
+                onChange={(e) => onNewPatientChange("email", e.target.value)}
                 sx={{
                   "& .MuiOutlinedInput-root": {
                     borderRadius: "8px"
