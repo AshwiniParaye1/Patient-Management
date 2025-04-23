@@ -270,7 +270,8 @@ export default function FilePage() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newPatient, setNewPatient] = useState({
     patientId: "Auto Generate",
-    patientName: "",
+    firstName: "",
+    lastName: "",
     location: "",
     age: "",
     phone: "",
@@ -310,10 +311,10 @@ export default function FilePage() {
           id.toString()
         );
         setAvailableSheets(sheets);
-
         // Set the active sheet to the patient sheet
         const patientSheet = sheets.find(
-          ({ sheet }: any) => sheet.title.toLowerCase() === "patient"
+          (sheet: { id: number; title: string }) =>
+            sheet.title.toLowerCase() === "patient"
         );
 
         if (patientSheet) {
@@ -430,8 +431,8 @@ export default function FilePage() {
     if (editRowIndex === null || !id || !session?.accessToken) return;
 
     try {
-      // Calculate the actual row index in the sheet (header + 1-based index)
-      const actualRowIndex = sheetData.indexOf(filteredData[editRowIndex]) + 1;
+      // Calculate the actual row index in the sheet (header + filtered index + 1)
+      const actualRowIndex = editRowIndex + 1;
 
       // Update local data first (optimistic update)
       const newSheetData = [...sheetData];
@@ -474,15 +475,21 @@ export default function FilePage() {
       return;
 
     try {
-      const actualRowIndex =
-        sheetData.indexOf(filteredData[deleteRowIndex]) + 1;
+      // Calculate the actual row index by adding 1 to account for header row
+      const actualRowIndex = deleteRowIndex + 1;
 
+      // Delete the row from the sheet
       await deleteSheetRow(
         session.accessToken,
         id.toString(),
         activeSheet,
         actualRowIndex
       );
+
+      // Update local state to remove the deleted row
+      const newSheetData = [...sheetData];
+      newSheetData.splice(actualRowIndex, 1);
+      setSheetData(newSheetData);
 
       setNotification({
         open: true,
@@ -514,7 +521,8 @@ export default function FilePage() {
     setAddDialogOpen(false);
     setNewPatient({
       patientId: "Auto Generate",
-      patientName: "",
+      firstName: "",
+      lastName: "",
       location: "",
       age: "",
       phone: "",
@@ -550,14 +558,11 @@ export default function FilePage() {
           : newPatient.patientId;
       const appointmentId = generateId("ap");
 
-      // Split patient name into first and last name
-      const [firstName = "", lastName = ""] = newPatient.patientName.split(" ");
-
       // 1. Add to patient sheet
       const patientData = [
         patientId, // ssn
-        firstName, // first_name
-        lastName, // last_name
+        newPatient.firstName, // first_name
+        newPatient.lastName, // last_name
         newPatient.address, // address
         newPatient.location, // location
         "", // email
@@ -696,7 +701,6 @@ export default function FilePage() {
               <Chip
                 label={activeSheet}
                 size="small"
-                color="primary"
                 sx={{ ml: 2, verticalAlign: "middle" }}
               />
             )}
@@ -726,20 +730,15 @@ export default function FilePage() {
               }}
             />
             <Box sx={{ display: "flex", gap: 1 }}>
-              <Button
-                variant="contained"
+              <button
                 color="primary"
-                startIcon={<AddIcon />}
-                sx={{ whiteSpace: "nowrap" }}
                 onClick={handleAddClick}
+                className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
               >
+                <AddIcon />
                 Add Patient
-              </Button>
-              <IconButton
-                onClick={handleRefresh}
-                disabled={refreshing}
-                color="primary"
-              >
+              </button>
+              <IconButton onClick={handleRefresh} disabled={refreshing}>
                 <RefreshIcon />
               </IconButton>
             </Box>
@@ -942,15 +941,34 @@ export default function FilePage() {
                     </Box>
                     <Box sx={{ flex: 1 }}>
                       <Typography variant="subtitle2" gutterBottom>
-                        Patient Name (First, Last Name)
+                        Patient First Name
                       </Typography>
                       <TextField
                         fullWidth
                         variant="outlined"
                         size="small"
-                        value={newPatient.patientName}
+                        value={newPatient.firstName}
                         onChange={(e) =>
-                          handleNewPatientChange("patientName", e.target.value)
+                          handleNewPatientChange("firstName", e.target.value)
+                        }
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: "8px"
+                          }
+                        }}
+                      />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Patient Last Name
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        variant="outlined"
+                        size="small"
+                        value={newPatient.lastName}
+                        onChange={(e) =>
+                          handleNewPatientChange("lastName", e.target.value)
                         }
                         sx={{
                           "& .MuiOutlinedInput-root": {
