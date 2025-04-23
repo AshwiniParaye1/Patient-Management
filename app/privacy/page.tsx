@@ -9,7 +9,7 @@ export default function PrivacyPolicy() {
       <main className="max-w-3xl mx-auto px-4 py-12 text-gray-800">
         <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
         <p className="mb-4">
-          At <strong>YourAppName</strong>, we take your privacy seriously. This
+          At <strong>MyDrive</strong>, we take your privacy seriously. This
           Privacy Policy outlines what data we collect, how we use it, and your
           rights.
         </p>
