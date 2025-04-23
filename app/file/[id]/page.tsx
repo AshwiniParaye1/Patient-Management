@@ -575,14 +575,18 @@ export default function FilePage() {
                 </Box>
               </DialogContent>
               <DialogActions>
-                <Button onClick={handleEditDialogClose}>Cancel</Button>
-                <Button
+                <button
+                  onClick={handleEditDialogClose}
+                  className="px-4 py-2 mr-4 bg-white border text-black rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
                   onClick={handleEditSave}
-                  variant="contained"
-                  color="primary"
+                  className="px-4 py-2 mr-4 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
                 >
                   Save
-                </Button>
+                </button>
               </DialogActions>
             </Dialog>
 
@@ -596,12 +600,19 @@ export default function FilePage() {
                 </DialogContentText>
               </DialogContent>
               <DialogActions>
-                <Button onClick={() => setDeleteDialogOpen(false)}>
+                <button
+                  onClick={() => setDeleteDialogOpen(false)}
+                  className="px-4 py-2 mr-4 bg-white border text-black rounded-lg hover:bg-gray-200 transition-colors"
+                >
                   Cancel
-                </Button>
-                <Button color="error" onClick={handleDeleteConfirm}>
+                </button>
+                <button
+                  color="error"
+                  onClick={handleDeleteConfirm}
+                  className="px-4 py-2 mr-4 bg-red-500 border text-white rounded-lg hover:bg-red-400 transition-colors"
+                >
                   Delete
-                </Button>
+                </button>
               </DialogActions>
             </Dialog>
 
