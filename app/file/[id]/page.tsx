@@ -1,7 +1,9 @@
-//app/file/[id]/page.tsx
+// app/file/[id]/page.tsx
 
 "use client";
 
+import AddPatientDialog from "@/app/components/AddPatientDialog";
+import { NewPatient, Sheet } from "@/types/sheet";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
@@ -31,214 +33,12 @@ import {
 } from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import type React from "react";
-import { useEffect, useState } from "react";
-
-// Function to get available sheets in the spreadsheet
-async function getAvailableSheets(accessToken: string, fileId: string) {
-  if (!accessToken) {
-    throw new Error("No access token provided");
-  }
-
-  try {
-    const metadataResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    if (!metadataResponse.ok) {
-      throw new Error(
-        `Failed to get spreadsheet metadata: ${metadataResponse.status}`
-      );
-    }
-
-    const metadata = await metadataResponse.json();
-    return metadata.sheets.map((sheet: any) => ({
-      id: sheet.properties.sheetId,
-      title: sheet.properties.title
-    }));
-  } catch (error) {
-    console.error("Error fetching Google Sheets metadata:", error);
-    throw error;
-  }
-}
-
-// Function to fetch Google Sheets data
-async function fetchSheetData(
-  accessToken: string,
-  fileId: string,
-  sheetTitle: string
-) {
-  if (!accessToken) {
-    throw new Error("No access token provided");
-  }
-
-  try {
-    const dataResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${sheetTitle}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    if (!dataResponse.ok) {
-      throw new Error(`Failed to get sheet data: ${dataResponse.status}`);
-    }
-
-    const data = await dataResponse.json();
-    return data.values;
-  } catch (error) {
-    console.error("Error fetching Google Sheet data:", error);
-    throw error;
-  }
-}
-
-// Function to add data to a specific sheet
-async function addDataToSheet(
-  accessToken: string,
-  fileId: string,
-  sheetName: string,
-  rowData: string[]
-) {
-  if (!accessToken) {
-    throw new Error("No access token provided");
-  }
-
-  try {
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${sheetName}:append?valueInputOption=USER_ENTERED`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          values: [rowData]
-        })
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to add data to ${sheetName} sheet`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error(`Error adding data to ${sheetName} sheet:`, error);
-    throw error;
-  }
-}
-
-// Function to delete a row from Google Sheets
-async function deleteSheetRow(
-  accessToken: string,
-  fileId: string,
-  sheetTitle: string,
-  rowIndex: number
-) {
-  if (!accessToken) {
-    throw new Error("No access token provided");
-  }
-
-  try {
-    // Get the actual sheet ID from metadata first
-    const metadataResponse = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        }
-      }
-    );
-
-    if (!metadataResponse.ok) {
-      throw new Error(
-        `Failed to get spreadsheet metadata: ${metadataResponse.status}`
-      );
-    }
-
-    const metadata = await metadataResponse.json();
-
-    // Find the sheet with the matching title
-    let sheetId = null;
-    for (const sheet of metadata.sheets) {
-      if (sheet.properties.title === sheetTitle) {
-        sheetId = sheet.properties.sheetId;
-        break;
-      }
-    }
-
-    if (!sheetId) {
-      throw new Error(`Could not find sheet with title: ${sheetTitle}`);
-    }
-
-    // Google Sheets API requires batch update for row deletion
-    const request = {
-      requests: [
-        {
-          deleteDimension: {
-            range: {
-              sheetId: sheetId,
-              dimension: "ROWS",
-              startIndex: rowIndex,
-              endIndex: rowIndex + 1
-            }
-          }
-        }
-      ]
-    };
-
-    const response = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}:batchUpdate`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(request)
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error("Google Sheets API error:", errorData);
-      throw new Error(`Failed to delete row: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error deleting row from Google Sheet:", error);
-    throw error;
-  }
-}
-
-// Function to generate unique IDs
-function generateId(prefix: string) {
-  return `${prefix}${Math.floor(Math.random() * 10000)
-    .toString()
-    .padStart(4, "0")}`;
-}
-
-// Function to format date as MM/DD/YY
-function formatDate(date: string) {
-  if (!date) return "";
-  const d = new Date(date);
-  return `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d
-    .getDate()
-    .toString()
-    .padStart(2, "0")}/${d.getFullYear().toString().slice(-2)}`;
-}
+import React, { useEffect, useState } from "react";
+import {
+  deleteSheetRow,
+  fetchSheetData,
+  getAvailableSheets
+} from "./googleSheetsApi";
 
 export default function FilePage() {
   const params = useParams();
@@ -251,9 +51,7 @@ export default function FilePage() {
   const [search, setSearch] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [activeSheet, setActiveSheet] = useState<string | null>(null);
-  const [availableSheets, setAvailableSheets] = useState<
-    Array<{ id: number; title: string }>
-  >([]);
+  const [availableSheets, setAvailableSheets] = useState<Sheet[]>([]);
 
   // State for edit functionality
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -270,7 +68,7 @@ export default function FilePage() {
 
   // State for add patient functionality
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [newPatient, setNewPatient] = useState({
+  const [newPatient, setNewPatient] = useState<NewPatient>({
     patientId: "Auto Generate",
     firstName: "",
     lastName: "",
@@ -540,108 +338,11 @@ export default function FilePage() {
     });
   };
 
-  const handleNewPatientChange = (field: string, value: string) => {
+  const handleNewPatientChange = (field: keyof NewPatient, value: string) => {
     setNewPatient({
       ...newPatient,
       [field]: value
     });
-  };
-
-  const handleAddPatient = async () => {
-    if (!id || !session?.accessToken) return;
-
-    try {
-      // Generate IDs
-      const patientId =
-        newPatient.patientId === "Auto Generate"
-          ? `a12kj${Math.floor(Math.random() * 1000)
-              .toString()
-              .padStart(3, "0")}`
-          : newPatient.patientId;
-      const appointmentId = generateId("ap");
-
-      // 1. Add to patient sheet
-      const patientData = [
-        patientId, // ssn
-        newPatient.firstName, // first_name
-        newPatient.lastName, // last_name
-        newPatient.address, // address
-        newPatient.location, // location
-        "", // email
-        newPatient.phone, // phone
-        "" // pcp
-      ];
-      await addDataToSheet(
-        session.accessToken,
-        id.toString(),
-        "patient",
-        patientData
-      );
-
-      // 2. Add to appointment sheet
-      const appointmentData = [
-        appointmentId, // appointmentID
-        patientId, // patientID
-        newPatient.physicianId, // physicianID
-        formatDate(newPatient.visitDate), // start_dt_time
-        formatDate(newPatient.nextVisit) // next_dt_time
-      ];
-      await addDataToSheet(
-        session.accessToken,
-        id.toString(),
-        "appointment",
-        appointmentData
-      );
-
-      // 3. Add to prescribes sheet
-      const prescribesData = [
-        newPatient.physicianId, // physician
-        patientId, // PatientID
-        newPatient.prescription, // description
-        newPatient.dose // dose
-      ];
-      await addDataToSheet(
-        session.accessToken,
-        id.toString(),
-        "prescribes",
-        prescribesData
-      );
-
-      // 4. Add to physician sheet if new physician
-      if (newPatient.physicianId && newPatient.physicianName) {
-        const [physicianFirstName = "", physicianLastName = ""] =
-          newPatient.physicianName.split(" ");
-        const physicianData = [
-          newPatient.physicianId, // employeeid
-          `${physicianFirstName} ${physicianLastName}`, // name
-          "Sr Doctor", // position
-          newPatient.physicianPhone // phone
-        ];
-        await addDataToSheet(
-          session.accessToken,
-          id.toString(),
-          "physician",
-          physicianData
-        );
-      }
-
-      setNotification({
-        open: true,
-        message: "Patient and related data added successfully",
-        type: "success"
-      });
-
-      // Refresh the data
-      await handleRefresh();
-      handleAddDialogClose();
-    } catch (error: any) {
-      console.error("Error adding patient data:", error);
-      setNotification({
-        open: true,
-        message: `Failed to add patient data: ${error.message}`,
-        type: "error"
-      });
-    }
   };
 
   const handleCloseNotification = () => {
@@ -733,7 +434,6 @@ export default function FilePage() {
             />
             <Box sx={{ display: "flex", gap: 1 }}>
               <button
-                color="primary"
                 onClick={handleAddClick}
                 className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
               >
@@ -906,359 +606,16 @@ export default function FilePage() {
             </Dialog>
 
             {/* Add Patient Dialog */}
-            <Dialog
+            <AddPatientDialog
               open={addDialogOpen}
               onClose={handleAddDialogClose}
-              maxWidth="md"
-              fullWidth
-            >
-              <DialogTitle>
-                <Typography variant="h5" component="div" fontWeight="bold">
-                  Add Patient
-                </Typography>
-              </DialogTitle>
-              <DialogContent>
-                <Box sx={{ mt: 2 }}>
-                  {/* First row */}
-                  <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Patient ID
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.patientId}
-                        onChange={(e) =>
-                          handleNewPatientChange("patientId", e.target.value)
-                        }
-                        disabled={newPatient.patientId === "Auto Generate"}
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Patient First Name
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.firstName}
-                        onChange={(e) =>
-                          handleNewPatientChange("firstName", e.target.value)
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Patient Last Name
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.lastName}
-                        onChange={(e) =>
-                          handleNewPatientChange("lastName", e.target.value)
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Location
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.location}
-                        onChange={(e) =>
-                          handleNewPatientChange("location", e.target.value)
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Box>
-
-                  {/* Second row */}
-                  <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Age
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.age}
-                        onChange={(e) =>
-                          handleNewPatientChange("age", e.target.value)
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Phone
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.phone}
-                        onChange={(e) =>
-                          handleNewPatientChange("phone", e.target.value)
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Address
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.address}
-                        onChange={(e) =>
-                          handleNewPatientChange("address", e.target.value)
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Box>
-
-                  <Box sx={{ height: "1px", bgcolor: "#e0e0e0", my: 3 }} />
-
-                  {/* Third row */}
-                  <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Prescription
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.prescription}
-                        onChange={(e) =>
-                          handleNewPatientChange("prescription", e.target.value)
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Dose
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.dose}
-                        onChange={(e) =>
-                          handleNewPatientChange("dose", e.target.value)
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Box>
-
-                  {/* Fourth row */}
-                  <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Visit Date
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        type="date"
-                        value={newPatient.visitDate}
-                        onChange={(e) =>
-                          handleNewPatientChange("visitDate", e.target.value)
-                        }
-                        InputLabelProps={{
-                          shrink: true
-                        }}
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Next Visit
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        type="date"
-                        value={newPatient.nextVisit}
-                        onChange={(e) =>
-                          handleNewPatientChange("nextVisit", e.target.value)
-                        }
-                        InputLabelProps={{
-                          shrink: true
-                        }}
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Box>
-
-                  <Box sx={{ height: "1px", bgcolor: "#e0e0e0", my: 3 }} />
-
-                  {/* Fifth row */}
-                  <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Physician ID
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.physicianId}
-                        onChange={(e) =>
-                          handleNewPatientChange("physicianId", e.target.value)
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Physician Name (First, Last Name)
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.physicianName}
-                        onChange={(e) =>
-                          handleNewPatientChange(
-                            "physicianName",
-                            e.target.value
-                          )
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Box>
-
-                  {/* Sixth row */}
-                  <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Phone
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.physicianPhone}
-                        onChange={(e) =>
-                          handleNewPatientChange(
-                            "physicianPhone",
-                            e.target.value
-                          )
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="subtitle2" gutterBottom>
-                        Bill
-                      </Typography>
-                      <TextField
-                        fullWidth
-                        variant="outlined"
-                        size="small"
-                        value={newPatient.bill}
-                        onChange={(e) =>
-                          handleNewPatientChange("bill", e.target.value)
-                        }
-                        sx={{
-                          "& .MuiOutlinedInput-root": {
-                            borderRadius: "8px"
-                          }
-                        }}
-                      />
-                    </Box>
-                  </Box>
-                </Box>
-              </DialogContent>
-              <DialogActions>
-                <Button onClick={handleAddDialogClose}>Cancel</Button>
-                <Button
-                  onClick={handleAddPatient}
-                  variant="contained"
-                  color="primary"
-                >
-                  Add Patient
-                </Button>
-              </DialogActions>
-            </Dialog>
+              newPatient={newPatient}
+              onNewPatientChange={handleNewPatientChange}
+              setNotification={setNotification}
+              accessToken={session?.accessToken}
+              fileId={id?.toString()}
+              handleRefresh={handleRefresh}
+            />
 
             {/* Empty state handling */}
             {filteredData.length === 0 && search && (
