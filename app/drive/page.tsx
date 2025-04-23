@@ -22,6 +22,7 @@ export default function DrivePage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const router = useRouter();
 
   // Show session debug info
@@ -51,6 +52,7 @@ export default function DrivePage() {
       setLoading(true);
       const files = await listFiles(token);
       setFiles(files);
+      setLastRefreshed(new Date());
       setError(null);
     } catch (err) {
       console.error("Error fetching files:", err);
@@ -87,8 +89,7 @@ export default function DrivePage() {
       setUploading(true);
       await uploadFile(session.accessToken, selectedFile);
       // Refresh file list
-      const updatedFiles = await listFiles(session.accessToken);
-      setFiles(updatedFiles);
+      await fetchFiles();
       setSelectedFile(null);
       // Reset file input
       const fileInput = document.getElementById(
@@ -154,17 +155,29 @@ export default function DrivePage() {
         <div className="px-6 py-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
           <h3 className="text-xl font-semibold text-black">
             Files in your Drive
+            {lastRefreshed && (
+              <span className="text-sm font-normal text-gray-500 ml-2">
+                Last updated: {lastRefreshed.toLocaleTimeString()}
+              </span>
+            )}
           </h3>
           <button
-            className="bg-black text-white px-4 py-2 rounded-lg"
+            className="bg-black text-white px-4 py-2 rounded-lg flex items-center"
             onClick={fetchFiles}
-            disabled={!session?.accessToken}
+            disabled={loading || !session?.accessToken}
           >
-            Fetch Files
+            {loading ? (
+              <>
+                <span className="inline-block animate-spin mr-2 w-4 h-4 border-2 border-white border-t-transparent rounded-full"></span>
+                Refreshing...
+              </>
+            ) : (
+              "Refresh Files"
+            )}
           </button>
         </div>
 
-        {loading ? (
+        {loading && files.length === 0 ? (
           <div className="text-center p-10 text-gray-600">
             <div className="inline-block animate-spin mr-2 w-5 h-5 border-2 border-black border-t-transparent rounded-full"></div>
             Loading your files...

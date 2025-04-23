@@ -21,8 +21,9 @@ export async function listFiles(accessToken: string) {
       accessToken.substring(0, 5) + "..."
     );
 
+    // Added 'trashed=false' query parameter to filter out deleted files
     const response = await fetch(
-      "https://www.googleapis.com/drive/v3/files?pageSize=10&fields=files(id,name,mimeType,webViewLink)",
+      "https://www.googleapis.com/drive/v3/files?pageSize=10&fields=files(id,name,mimeType,webViewLink)&q=trashed=false",
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
