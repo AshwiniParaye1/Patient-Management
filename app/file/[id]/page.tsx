@@ -37,7 +37,8 @@ import React, { useEffect, useState } from "react";
 import {
   deleteSheetRow,
   fetchSheetData,
-  getAvailableSheets
+  getAvailableSheets,
+  updateSheetRow
 } from "./googleSheetsApi";
 
 export default function FilePage() {
@@ -228,19 +229,25 @@ export default function FilePage() {
   };
 
   const handleEditSave = async () => {
-    if (editRowIndex === null || !id || !session?.accessToken) return;
+    if (editRowIndex === null || !id || !session?.accessToken || !activeSheet)
+      return;
 
     try {
-      // Calculate the actual row index in the sheet (header + filtered index + 1)
-      const actualRowIndex = editRowIndex + 1;
+      // Calculate the actual row index in the sheet (starting from 2 because of header)
+      const actualRowIndex = editRowIndex + 2;
 
-      // Update local data first (optimistic update)
       const newSheetData = [...sheetData];
-      newSheetData[actualRowIndex] = editValues;
+      newSheetData[actualRowIndex - 1] = editValues;
       setSheetData(newSheetData);
 
-      // Refresh data to ensure we have the latest
-      await handleRefresh();
+      // API call to update the row
+      await updateSheetRow(
+        session.accessToken,
+        id.toString(),
+        activeSheet,
+        actualRowIndex,
+        editValues
+      );
 
       setNotification({
         open: true,
@@ -249,7 +256,11 @@ export default function FilePage() {
       });
 
       handleEditDialogClose();
+
+      // Refresh data to ensure we have the latest data
+      await handleRefresh();
     } catch (error: any) {
+      console.error("Error updating row:", error);
       setNotification({
         open: true,
         message: `Failed to update: ${error.message}`,

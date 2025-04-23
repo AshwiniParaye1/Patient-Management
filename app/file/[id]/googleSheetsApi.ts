@@ -184,3 +184,81 @@ export async function deleteSheetRow(
     throw error;
   }
 }
+
+export async function updateSheetRow(
+  accessToken: string,
+  fileId: string,
+  sheetTitle: string,
+  rowIndex: number, // The actual row index (starting from 1)
+  rowData: string[]
+) {
+  if (!accessToken) {
+    throw new Error("No access token provided");
+  }
+
+  try {
+    // Get the actual sheet ID from metadata
+    const metadataResponse = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    if (!metadataResponse.ok) {
+      throw new Error(
+        `Failed to get spreadsheet metadata: ${metadataResponse.status}`
+      );
+    }
+
+    const metadata = await metadataResponse.json();
+
+    // Find the sheet with the matching title
+    let sheetId = null;
+    for (const sheet of metadata.sheets) {
+      if (sheet.properties.title === sheetTitle) {
+        sheetId = sheet.properties.sheetId;
+        break;
+      }
+    }
+
+    if (!sheetId) {
+      throw new Error(`Could not find sheet with title: ${sheetTitle}`);
+    }
+
+    // Correct Range Calculation:
+    const range = `${sheetTitle}!A${rowIndex}:${String.fromCharCode(
+      65 + rowData.length - 1
+    )}${rowIndex}`;
+
+    const request = {
+      values: [rowData]
+    };
+
+    const response = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${fileId}/values/${range}?valueInputOption=USER_ENTERED`,
+      {
+        method: "PUT", // Use PUT to overwrite the entire range
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(request)
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error("Google Sheets API error:", errorData);
+      throw new Error(`Failed to update row: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating row in Google Sheet:", error);
+    throw error;
+  }
+}
