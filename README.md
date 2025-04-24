@@ -6,7 +6,7 @@ https://www.loom.com/share/3ca892f9ecbc410086bd2eaceea306b6?sid=92dcb195-952a-42
 
 This app allows users to view, edit, and manage Google Sheets files stored on their Google Drive. The app integrates with Google Sheets and Google Drive APIs, offering users seamless management of their spreadsheet data.
 
-Note: This app is currently in testing and is only available for test users. It has not yet been published to the Google Cloud Console because it is still in development and under internal testing. Only a select group of users are authorized to use it at this stage due to Google's security concerns and verification requirements.
+> **Note:** This app is currently in testing and is only available for test users. It has not yet been published to the Google Cloud Console because it is still in development and under internal testing. Only a select group of users are authorized to use it at this stage due to Google's security concerns and verification requirements.
 
 ## ✨ Features
 
